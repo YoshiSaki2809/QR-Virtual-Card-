@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Digital Business Card</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="assets/css/style.css">
+  
+  <style>
+    :root {
+      --theme-primary: #3b82f6;
+      --theme-secondary: #1d4ed8;
+      --theme-accent: #2563eb;
+    }
+    .theme-header {
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+    }
+    .theme-button {
+      background-color: var(--theme-primary);
+    }
+    .theme-button:hover {
+      background-color: var(--theme-secondary);
+    }
+    .theme-text {
+      color: var(--theme-primary);
+    }
+    .theme-border {
+      border-color: var(--theme-primary);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-0 sm:p-4 text-slate-800 antialiased font-sans">
+
+  <!-- Mobile Card Wrapper -->
+  <div class="w-full max-w-md bg-white min-h-screen sm:min-h-0 sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative pb-8">
+    
+    <!-- Top Decorative Banner -->
+    <div id="cardBanner" class="theme-header h-40 w-full relative transition-all duration-300">
+      <div class="absolute inset-0 bg-black/10"></div>
+      
+      <!-- Top Actions: Share Button -->
+      <div class="absolute top-4 right-4 z-10 flex gap-2">
+        <button id="btnShareCard" class="w-9 h-9 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/30 transition" title="Share Card">
+          <i data-lucide="share-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Profile Header & Avatar -->
+    <div class="px-6 relative -mt-16 flex flex-col items-center text-center">
+      <!-- Avatar with initials -->
+      <div id="avatarContainer" class="w-28 h-28 rounded-full bg-white shadow-xl p-1.5 z-10">
+        <div id="avatarBg" class="w-full h-full rounded-full theme-header flex items-center justify-center text-white text-3xl font-bold tracking-wider uppercase shadow-inner overflow-hidden">
+          <span id="avatarInitials"></span>
+          <img id="avatarImg" class="w-full h-full object-cover hidden" alt="Profile Photo">
+        </div>
+      </div>
+
+      <!-- Names & Title -->
+      <h1 id="cardFullName" class="text-2xl font-black text-slate-900 mt-3 tracking-tight min-h-[2rem]"></h1>
+      <p id="cardJobTitle" class="text-sm font-semibold text-slate-600 mt-0.5 hidden"></p>
+      
+      <div id="cardCompanyBadge" class="hidden items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium mt-2">
+        <i data-lucide="building-2" class="w-3.5 h-3.5 text-slate-500"></i>
+        <span id="cardCompanyName"></span>
+      </div>
+
+      <div id="cardDobContainer" class="hidden items-center gap-1.5 text-slate-500 text-xs mt-1.5">
+        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        <span>Born: <span id="cardDob"></span></span>
+      </div>
+
+      <!-- Quick Floating Action Buttons (Call, Email, Website) -->
+      <div class="grid grid-cols-3 gap-3 w-full mt-6">
+        <a id="btnQuickCall" href="#" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition group">
+          <div class="w-11 h-11 rounded-xl theme-header text-white flex items-center justify-center shadow-md mb-1.5 group-hover:scale-105 transition">
+            <i data-lucide="phone-call" class="w-5 h-5"></i>
+          </div>
+          <span class="text-xs font-semibold text-slate-700">Call</span>
+        </a>
+
+        <a id="btnQuickEmail" href="#" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition group">
+          <div class="w-11 h-11 rounded-xl theme-header text-white flex items-center justify-center shadow-md mb-1.5 group-hover:scale-105 transition">
+            <i data-lucide="mail" class="w-5 h-5"></i>
+          </div>
+          <span class="text-xs font-semibold text-slate-700">Email</span>
+        </a>
+
+        <a id="btnQuickWeb" href="#" target="_blank" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition group">
+          <div class="w-11 h-11 rounded-xl theme-header text-white flex items-center justify-center shadow-md mb-1.5 group-hover:scale-105 transition">
+            <i data-lucide="globe" class="w-5 h-5"></i>
+          </div>
+          <span class="text-xs font-semibold text-slate-700">Website</span>
+        </a>
+      </div>
+
+      <!-- Primary Action: Save to Phone Contacts (Import .vcf) -->
+      <button id="btnSaveContact" class="theme-button text-white w-full py-3.5 px-6 rounded-2xl font-bold text-base shadow-lg shadow-blue-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition flex items-center justify-center gap-2 mt-4 cursor-pointer">
+        <i data-lucide="user-plus" class="w-5 h-5"></i>
+        <span>Save to Contacts</span>
+      </button>
+      <p class="text-[11px] text-slate-400 mt-1">Imports directly into your phone contacts list</p>
+    </div>
+
+    <!-- Detailed Contact Cards -->
+    <div class="px-6 mt-6 flex flex-col gap-3">
+      
+      <!-- Phone Detail -->
+      <div id="phoneSection" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-600">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <p id="cardPhoneLabel" class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Mobile Phone</p>
+            <p id="cardPhoneText" class="text-sm font-semibold text-slate-800"></p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1">
+          <a id="linkWhatsApp" href="#" target="_blank" class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition" title="WhatsApp Message">
+            <i data-lucide="message-circle" class="w-4 h-4"></i>
+          </a>
+          <a id="linkCall" href="#" class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition" title="Call">
+            <i data-lucide="phone" class="w-4 h-4"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Email Detail -->
+      <div id="emailSection" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-600">
+            <i data-lucide="at-sign" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Email Address</p>
+            <p id="cardEmailText" class="text-sm font-semibold text-slate-800 truncate max-w-[200px]"></p>
+          </div>
+        </div>
+        <a id="linkEmail" href="#" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
+          <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+        </a>
+      </div>
+
+      <!-- Website Detail -->
+      <div id="websiteSection" class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-600">
+            <i data-lucide="link-2" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Website</p>
+            <p id="cardWebsiteText" class="text-sm font-semibold text-slate-800 truncate max-w-[200px]"></p>
+          </div>
+        </div>
+        <a id="linkWebsite" href="#" target="_blank" class="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition">
+          <i data-lucide="external-link" class="w-4 h-4"></i>
+        </a>
+      </div>
+
+      <!-- Address & View on Map Card -->
+      <div id="addressSection" class="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-3">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-rose-500 shrink-0 mt-0.5">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+          </div>
+          <div class="text-left">
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Office Address</p>
+            <p id="cardAddressText" class="text-sm font-medium text-slate-800 leading-snug mt-0.5"></p>
+          </div>
+        </div>
+
+        <!-- Interactive "View on Map" Button -->
+        <a id="btnViewOnMap" href="#" target="_blank" class="w-full py-2.5 px-4 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-slate-100 text-slate-800 text-xs font-bold flex items-center justify-center gap-2 transition">
+          <i data-lucide="navigation" class="w-4 h-4 text-blue-600"></i>
+          <span>View on Google Maps</span>
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Footer Branding & Actions -->
+    <div class="mt-8 px-6 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+      <p>Company Digital Business Card</p>
+      <div class="flex items-center gap-3 mt-0.5">
+        <a id="btnEditCard" href="index.html" class="text-blue-600 hover:underline font-semibold flex items-center gap-1">
+          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+          <span>Edit My Card</span>
+        </a>
+        <span class="text-slate-300">•</span>
+        <a href="index.html" class="text-slate-500 hover:underline font-medium">Create New Card</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="assets/js/vcard-helper.js?v=3.1"></script>
+  <script src="assets/js/card.js?v=3.1"></script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+/* Custom Styles for vCard Generator & Card Viewer */
+
+/* intl-tel-input customization to match modern inputs */
+.iti {
+  width: 100%;
+  display: block;
+}
+
+.iti__country-list {
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e2e8f0 !important;
+  font-family: inherit !important;
+  max-height: 240px !important;
+  z-index: 50 !important;
+}
+
+.iti__country {
+  padding: 8px 12px !important;
+  font-size: 0.875rem !important;
+}
+
+.iti__country:hover,
+.iti__country.iti__highlight {
+  background-color: #f1f5f9 !important;
+}
+
+.iti input[type="tel"] {
+  width: 100%;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+/* Phone Mockup Frame */
+.phone-mockup {
+  width: 100%;
+  max-width: 360px;
+  height: 680px;
+  border-radius: 42px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 10px #1e293b;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+}
+
+/* Phone Dynamic Island / Notch */
+.phone-notch {
+  width: 110px;
+  height: 22px;
+  background-color: #1e293b;
+  border-radius: 20px;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+}
+
+/* Phone screen content scroll area */
+.phone-screen {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.phone-screen::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Color swatch button */
+.color-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.active {
+  box-shadow: 0 0 0 3px #3b82f6, 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: scale(1.1);
+}
+
+/* Glassmorphism Card Effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Pulse animation for QR download button */
+@keyframes softPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.pulse-soft:hover {
+  animation: softPulse 1.2s infinite ease-in-out;
+}
+
+/* Cropper.js Circular Mask Styles */
+.cropper-view-box,
+.cropper-face {
+  border-radius: 50% !important;
+}
+
+.cropper-view-box {
+  outline: 2px solid #3b82f6 !important;
+  outline-color: rgba(59, 130, 246, 0.8) !important;
+}
+
+.cropper-dashed {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Modal animation */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-animate {
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

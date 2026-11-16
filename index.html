@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>vCard QR Code Generator Studio</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- intl-tel-input CSS & JS (for International Phone with mini flags) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/css/intlTelInput.css">
+  <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/intlTelInput.min.js"></script>
+  <!-- QR Code Styling (custom shapes, colors, high-res PNG/SVG) -->
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.6.0-rc.1/lib/qr-code-styling.js"></script>
+  <!-- Cropper.js for Photo Zooming, Dragging & Scaling -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="assets/css/style.css">
+  
+  <style>
+    :root {
+      --preview-primary: #2563eb;
+      --preview-secondary: #1d4ed8;
+    }
+    .preview-header {
+      background: linear-gradient(135deg, var(--preview-primary), var(--preview-secondary));
+    }
+    .preview-button {
+      background-color: var(--preview-primary);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans min-h-screen">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 font-black text-lg">
+                    <i data-lucide="qr-code" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-none">vCard QR Generator</h1>
+                    <p class="text-xs text-slate-500 mt-0.5">Digital Business Card Studio</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <button type="button" id="btnOpenEditModal" onclick="window.openOtpModal ? window.openOtpModal() : null" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer">
+                    <i data-lucide="key" class="w-3.5 h-3.5 text-blue-600"></i>
+                    <span>Edit My Card</span>
+                </button>
+                <div id="adminNavButtons" class="items-center gap-2.5 hidden">
+                    <a href="dashboard.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                        <span>Back to Dashboard</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toast Notification (Floats top right when card/QR is saved or updated) -->
+    <div id="saveToast" class="fixed top-5 right-5 z-[100] transform transition-all duration-300 ease-out -translate-y-6 opacity-0 pointer-events-none flex items-center gap-3 py-3 px-4 rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-700/60 max-w-sm">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <h4 id="toastTitle" class="text-xs font-bold text-white tracking-wide">Saved Successfully! 🎉</h4>
+            <p id="toastMessage" class="text-[11px] text-slate-300 mt-0.5 truncate">Your vCard QR code is saved to database.</p>
+        </div>
+        <button type="button" onclick="window.hideToast ? window.hideToast() : null" class="text-slate-400 hover:text-white p-1 rounded-lg transition ml-1 cursor-pointer">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+    </div>
+
+    <!-- Main Content Layout (Form on Left, Sticky Tabbed Preview/QR on Right) -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT COLUMN: Form Inputs & Design Studio (7 Cols on md+) -->
+            <div class="md:col-span-7 xl:col-span-7 flex flex-col gap-6">
+
+                <!-- Card Form -->
+                <form id="vcardForm" class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col gap-7">
+
+                    <!-- Edit Mode Notice (Visible when editing via Admin or Email OTP) -->
+                    <div id="editModeNotice" class="hidden p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-amber-900"><span id="editingModeBadge">Editing Card:</span> <span id="editingCardName">Staff Card</span></p>
+                                <p class="text-[11px] text-amber-700">Changes will immediately update your live digital card and dynamic QR code.</p>
+                            </div>
+                        </div>
+                        <a href="index.html" class="px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition">
+                            Cancel / New Card
+                        </a>
+                    </div>
+
+                    <!-- Hidden Card Identifiers -->
+                    <input type="hidden" id="cardId" name="cardId" value="">
+                    <input type="hidden" id="editToken" name="editToken" value="">
+
+                    <!-- Section 1: Personal Information & Profile Photo -->
+                    <div>
+                        <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                            <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <i data-lucide="user" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Personal Information</h2>
+                                <p class="text-xs text-slate-500">Your basic identity and profile photo</p>
+                            </div>
+                        </div>
+
+                        <!-- Profile Photo Upload & Scale/Crop Box -->
+                        <div class="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-4">
+                            <!-- Avatar circular preview -->
+                            <div class="relative w-16 h-16 rounded-full bg-white shadow-sm border-2 border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                <span id="uploadAvatarInitials" class="text-slate-400 text-lg font-bold">VC</span>
+                                <img id="uploadAvatarImg" class="w-full h-full object-cover hidden" alt="Avatar Preview">
+                            </div>
+
+                            <!-- Upload controls -->
+                            <div class="flex-1 text-center sm:text-left">
+                                <p class="text-xs font-bold text-slate-800 uppercase tracking-wider">Profile Photo (Optional)</p>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Upload a vacation, selfie, or formal photo and scale/crop to your face.</p>
+
+                                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
+                                    <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer shadow-sm transition">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                                        <span>Upload Picture</span>
+                                        <input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+                                    </label>
+
+                                    <button type="button" id="btnAdjustCrop" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition">
+                                        <i data-lucide="crop" class="w-3.5 h-3.5 text-blue-600"></i>
+                                        <span>Scale / Crop Face</span>
+                                    </button>
+
+                                    <button type="button" id="btnRemovePhoto" class="hidden items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium transition">
+                                        <i data-lucide="trash-2" class="w-3 h-3 text-rose-500"></i>
+                                        <span>Remove</span>
+                                    </button>
+
+                                    <span id="uploadStatusText" class="text-[11px] text-slate-400 font-medium"></span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="photoUrl" name="photoUrl" value="">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">First Name <span class="text-rose-500">*</span></label>
+                                <input type="text" id="firstName" name="firstName" required placeholder="e.g. Ahmad"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Last Name <span class="text-rose-500">*</span></label>
+                                <input type="text" id="lastName" name="lastName" required placeholder="e.g. Razak"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Date of Birth <span class="text-[11px] font-normal text-slate-400 lowercase">(dd-mm-yyyy)</span></label>
+                                <input type="date" id="dob" name="dob"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Corporate Information (Optional) -->
+                    <div>
+                        <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                <i data-lucide="briefcase" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Corporate Information <span class="text-xs font-normal text-slate-400">(Optional)</span></h2>
+                                <p class="text-xs text-slate-500">Your organization, company and role</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Company Name</label>
+                                <input type="text" id="company" name="company" placeholder="e.g. Petronas / Acme Corp"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Job Title</label>
+                                <input type="text" id="jobTitle" name="jobTitle" placeholder="e.g. Senior Project Manager"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Contact & Phone (Optional, with Country Code Flags) -->
+                    <div>
+                        <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                <i data-lucide="phone-call" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Contact Details <span class="text-xs font-normal text-slate-400">(Optional)</span></h2>
+                                <p class="text-xs text-slate-500">Phone with international flags, email, and web links</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                            <!-- Phone Type -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Phone Type</label>
+                                <select id="phoneType" name="phoneType"
+                                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                                    <option value="Mobile" selected>Mobile</option>
+                                    <option value="Work">Work</option>
+                                    <option value="Main">Main</option>
+                                    <option value="Home">Home</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+
+                            <!-- Phone with International Country Code Flags (intl-tel-input) -->
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
+                                    Phone Number <span class="text-[11px] font-normal text-slate-400">(Click flag for country code)</span>
+                                </label>
+                                <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="12 345 6789"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <!-- Email -->
+                            <div class="sm:col-span-3">
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Email Address</label>
+                                <input type="email" id="email" name="email" placeholder="e.g. yourname@company.com"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <!-- Website -->
+                            <div class="sm:col-span-3">
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Website URL</label>
+                                <input type="url" id="website" name="website" placeholder="e.g. https://www.company.com"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Address & Map Location -->
+                    <div>
+                        <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                            <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Physical Address & Map</h2>
+                                <p class="text-xs text-slate-500">Allows visitors to click "View on Map" directly</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Street Address</label>
+                                <input type="text" id="address" name="address" placeholder="e.g. Level 18, Menara Binjai, Jalan Binjai"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">City</label>
+                                <input type="text" id="city" name="city" placeholder="e.g. Kuala Lumpur"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">State / Province</label>
+                                <input type="text" id="state" name="state" placeholder="e.g. Wilayah Persekutuan"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Postal Code</label>
+                                <input type="text" id="postalCode" name="postalCode" placeholder="e.g. 50450"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Country</label>
+                                <input type="text" id="country" name="country" placeholder="e.g. Malaysia"
+                                       class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm font-medium transition">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Design & Card Colors -->
+                    <div>
+                        <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+                            <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                                <i data-lucide="palette" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Card Design & Colors</h2>
+                                <p class="text-xs text-slate-500">Pick any custom color for your digital card</p>
+                            </div>
+                        </div>
+
+                        <!-- Color Presets -->
+                        <div class="mt-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">Card Themes</label>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <button type="button" class="color-swatch active" data-color="#2563eb" data-secondary="#1d4ed8" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);" title="Royal Blue"></button>
+                                <button type="button" class="color-swatch" data-color="#059669" data-secondary="#047857" style="background: linear-gradient(135deg, #059669, #047857);" title="Emerald Forest"></button>
+                                <button type="button" class="color-swatch" data-color="#7c3aed" data-secondary="#6d28d9" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);" title="Imperial Purple"></button>
+                                <button type="button" class="color-swatch" data-color="#e11d48" data-secondary="#be123c" style="background: linear-gradient(135deg, #e11d48, #be123c);" title="Crimson Ruby"></button>
+                                <button type="button" class="color-swatch" data-color="#ea580c" data-secondary="#c2410c" style="background: linear-gradient(135deg, #ea580c, #c2410c);" title="Sunset Amber"></button>
+                                <button type="button" class="color-swatch" data-color="#0f172a" data-secondary="#334155" style="background: linear-gradient(135deg, #0f172a, #334155);" title="Midnight Dark"></button>
+                                <button type="button" class="color-swatch" data-color="#0891b2" data-secondary="#0e7490" style="background: linear-gradient(135deg, #0891b2, #0e7490);" title="Ocean Cyan"></button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Card Color Drag / Picker -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Custom Primary Color</label>
+                                <div class="flex items-center gap-3 p-2 rounded-xl border border-slate-200 bg-slate-50">
+                                    <input type="color" id="customColorPicker" value="#2563eb"
+                                           class="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent">
+                                    <input type="text" id="customColorHex" value="#2563eb"
+                                           class="w-24 px-2 py-1 text-xs font-mono font-bold bg-white rounded border border-slate-200 uppercase">
+                                    <span class="text-xs text-slate-400">Card accent</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Secondary Gradient Color</label>
+                                <div class="flex items-center gap-3 p-2 rounded-xl border border-slate-200 bg-slate-50">
+                                    <input type="color" id="customColorSecondary" value="#1d4ed8"
+                                           class="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent">
+                                    <input type="text" id="customColorSecondaryHex" value="#1d4ed8"
+                                           class="w-24 px-2 py-1 text-xs font-mono font-bold bg-white rounded border border-slate-200 uppercase">
+                                    <span class="text-xs text-slate-400">Gradient tone</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- QR Destination URL: Hidden - auto-detected and applied silently on page load -->
+                    <input type="hidden" id="customBaseUrl" value="">
+                                       
+                </form>
+
+            </div>
+
+            <!-- RIGHT COLUMN: Sticky Side-by-Side (Preview & QR Code Tabs) (5 Cols on md+) -->
+            <div class="md:col-span-5 xl:col-span-5 sticky top-20 flex flex-col items-center">
+
+                <!-- Tab Switcher (Mobile Preview vs QR Code) -->
+                <div class="flex items-center p-1 bg-slate-200/80 rounded-2xl w-full max-w-[360px] mb-3 shadow-inner">
+                    <button type="button" id="tabBtnQR" class="flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition bg-white text-slate-900 shadow-sm cursor-pointer">
+                        <i data-lucide="qr-code" class="w-4 h-4 text-pink-600"></i>
+                        <span>QR Code</span>
+                    </button>
+                    <button type="button" id="tabBtnPreview" class="flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition text-slate-600 hover:text-slate-900 cursor-pointer">
+                        <i data-lucid e="smartphone" class="w-4 h-4 text-blue-600"></i>
+                        <span>Live Preview</span>
+                    </button>
+                </div>
+
+                <!-- PANEL 1: Mobile Phone Mockup Preview -->
+                <div id="panelPreview" class="w-full flex flex-col items-center">
+
+                    <!-- Phone Mockup Frame -->
+                    <div class="phone-mockup">
+                        <!-- Dynamic Island / Notch -->
+                        <div class="phone-notch"></div>
+
+                        <!-- Phone Screen Scrollable Area -->
+                        <div class="phone-screen">
+
+                            <!-- Preview Header Banner -->
+                            <div id="prevBanner" class="preview-header h-32 w-full relative transition-all duration-200">
+                                <div class="absolute inset-0 bg-black/10"></div>
+                            </div>
+
+                            <!-- Profile Card Header -->
+                            <div class="px-5 relative -mt-12 flex flex-col items-center text-center">
+                                <!-- Avatar -->
+                                <div class="w-20 h-20 rounded-full bg-white shadow-xl p-1 z-10">
+                                    <div id="prevAvatarBg" class="w-full h-full rounded-full preview-header flex items-center justify-center text-white text-xl font-bold tracking-wider uppercase overflow-hidden">
+                                        <span id="prevInitials">VC</span>
+                                        <img id="prevAvatarImg" class="w-full h-full object-cover hidden" alt="Profile Photo">
+                                    </div>
+                                </div>
+
+                                <!-- Names -->
+                                <h2 id="prevFullName" class="text-lg font-black text-slate-900 mt-2 tracking-tight">Your Name</h2>
+                                <p id="prevJobTitle" class="text-xs font-semibold text-slate-500">Job Title</p>
+
+                                <!-- Company Badge -->
+                                <div id="prevCompanyBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-medium mt-1.5 hidden">
+                                    <i data-lucide="building-2" class="w-3 h-3 text-slate-500"></i>
+                                    <span id="prevCompanyName">Company Name</span>
+                                </div>
+
+                                <!-- DOB -->
+                                <p id="prevDob" class="text-[11px] text-slate-400 mt-1 hidden">Born: <span></span></p>
+
+                                <!-- Quick Action Buttons -->
+                                <div class="grid grid-cols-3 gap-2 w-full mt-4">
+                                    <div class="p-2 rounded-xl bg-white border border-slate-100 flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-lg preview-header text-white flex items-center justify-center mb-1 shadow-sm">
+                                            <i data-lucide="phone-call" class="w-3.5 h-3.5"></i>
+                                        </div>
+                                        <span class="text-[10px] font-semibold text-slate-600">Call</span>
+                                    </div>
+
+                                    <div class="p-2 rounded-xl bg-white border border-slate-100 flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-lg preview-header text-white flex items-center justify-center mb-1 shadow-sm">
+                                            <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                                        </div>
+                                        <span class="text-[10px] font-semibold text-slate-600">Email</span>
+                                    </div>
+
+                                    <div class="p-2 rounded-xl bg-white border border-slate-100 flex flex-col items-center">
+                                        <div class="w-8 h-8 rounded-lg preview-header text-white flex items-center justify-center mb-1 shadow-sm">
+                                            <i data-lucide="globe" class="w-3.5 h-3.5"></i>
+                                        </div>
+                                        <span class="text-[10px] font-semibold text-slate-600">Web</span>
+                                    </div>
+                                </div>
+
+                                <!-- Save Contact CTA Mock -->
+                                <button type="button" class="preview-button text-white w-full py-2.5 px-4 rounded-xl font-bold text-xs shadow-md mt-3 flex items-center justify-center gap-1.5 pointer-events-none">
+                                    <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                                    <span>Save to Contacts</span>
+                                </button>
+                            </div>
+
+                            <!-- Preview Details List -->
+                            <div class="px-5 mt-4 flex flex-col gap-2 pb-6">
+                                <!-- Phone -->
+                                <div class="p-2.5 rounded-xl bg-white border border-slate-100 flex items-center gap-2.5">
+                                    <i data-lucide="smartphone" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    <div class="text-left overflow-hidden">
+                                        <p class="text-[9px] text-slate-400 uppercase font-bold" id="prevPhoneType">Mobile Phone</p>
+                                        <p class="text-xs font-semibold text-slate-500 truncate" id="prevPhoneText">No phone entered</p>
+                                    </div>
+                                </div>
+
+                                <!-- Email -->
+                                <div class="p-2.5 rounded-xl bg-white border border-slate-100 flex items-center gap-2.5">
+                                    <i data-lucide="at-sign" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    <div class="text-left overflow-hidden">
+                                        <p class="text-[9px] text-slate-400 uppercase font-bold">Email</p>
+                                        <p class="text-xs font-semibold text-slate-500 truncate" id="prevEmailText">No email entered</p>
+                                    </div>
+                                </div>
+
+                                <!-- Website -->
+                                <div class="p-2.5 rounded-xl bg-white border border-slate-100 flex items-center gap-2.5">
+                                    <i data-lucide="globe" class="w-3.5 h-3.5 text-slate-400"></i>
+                                    <div class="text-left overflow-hidden">
+                                        <p class="text-[9px] text-slate-400 uppercase font-bold">Website</p>
+                                        <p class="text-xs font-semibold text-slate-500 truncate" id="prevWebsiteText">No website entered</p>
+                                    </div>
+                                </div>
+
+                                <!-- Address -->
+                                <div class="p-2.5 rounded-xl bg-white border border-slate-100 flex flex-col gap-1.5">
+                                    <div class="flex items-start gap-2">
+                                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5"></i>
+                                        <p class="text-[11px] font-medium text-slate-500 leading-tight" id="prevAddressText">
+                                            No address entered
+                                        </p>
+                                    </div>
+                                    <div class="w-full py-1 rounded-lg bg-slate-50 border border-slate-200 text-center text-[10px] font-bold text-slate-600 flex items-center justify-center gap-1">
+                                        <i data-lucide="navigation" class="w-3 h-3 text-blue-500"></i>
+                                        <span>View on Map</span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-400 mt-2 text-center">
+                        Live preview updates as you type
+                    </p>
+
+                </div>
+
+                <!-- PANEL 2: QR Code Output & Color Options -->
+                <div id="panelQR" class="w-full max-w-[360px] bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col gap-4 hidden">
+
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                            <h2 class="text-sm font-bold text-slate-900">vCard QR Code</h2>
+                            <p class="text-[11px] text-slate-500">Ready to scan & save</p>
+                        </div>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
+                            ● Ready
+                        </span>
+                    </div>
+
+                    <!-- QR Code Canvas Display -->
+                    <div class="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div id="qrCanvasContainer" class="p-2 bg-white rounded-2xl shadow-md flex items-center justify-center min-w-[200px] min-h-[200px]">
+                            <!-- QR will be injected here -->
+                        </div>
+                        <h3 id="qrCardName" class="text-sm font-bold text-slate-900 mt-2.5">Your Digital Card</h3>
+                        <p class="text-[11px] text-slate-400">Scans directly to mobile digital card</p>
+                    </div>
+
+                    <!-- QR Customise: Color + Pattern — hidden during edit mode (#qrCustomizeSection) -->
+                    <div id="qrCustomizeSection" class="flex flex-col gap-3">
+
+                        <!-- QR Code Color Selector (Black, DuitNow Pink, Navy, Card Theme) -->
+                        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="palette" class="w-3 h-3 text-slate-500"></i>
+                                    <span>QR Color</span>
+                                </label>
+                                <span id="lblCurrentQrColor" class="text-[10px] font-semibold text-slate-500 font-mono">#000000</span>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2">
+                                <!-- Classic Black -->
+                                <button type="button" class="qr-color-btn active flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl border text-xs font-bold transition bg-slate-900 text-white border-slate-900" data-qr-color="#000000">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-black border border-white"></span>
+                                    <span>Classic Black</span>
+                                </button>
+
+                                <!-- DuitNow Pink (Malaysia Standard) -->
+                                <button type="button" class="qr-color-btn flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl border text-xs font-bold transition bg-white text-slate-700 border-slate-200 hover:border-pink-300" data-qr-color="#ED008C">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-[#ED008C]"></span>
+                                    <span>🇲🇾 DuitNow Pink</span>
+                                </button>
+
+                                <!-- Navy Blue -->
+                                <button type="button" class="qr-color-btn flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl border text-xs font-bold transition bg-white text-slate-700 border-slate-200 hover:border-blue-300" data-qr-color="#1E3A8A">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-[#1E3A8A]"></span>
+                                    <span>Navy Blue</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- QR Pattern Style Selector (Clean Dropdown below QR Color) -->
+                        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col gap-2">
+                            <div class="flex items-center justify-between">
+                                <label for="qrStyleSelect" class="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i data-lucide="shapes" class="w-3 h-3 text-slate-500"></i>
+                                    <span>QR Pattern Style</span>
+                                </label>
+                                <span class="text-[10px] text-slate-400 font-semibold">Shape</span>
+                            </div>
+                            <select id="qrStyleSelect" class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition cursor-pointer">
+                                <option value="rounded" selected>Rounded Dots (Modern)</option>
+                                <option value="square">Classic Square (Standard)</option>
+                                <option value="dots">Radial Dots (Clean)</option>
+                            </select>
+                        </div>
+
+                        <!-- Locked notice — shown in edit mode instead of the options above -->
+                        <div id="qrCustomizeLocked" class="hidden p-3 rounded-2xl bg-slate-100 border border-slate-200 flex items-center gap-2.5">
+                            <i data-lucide="lock" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                            <p class="text-[11px] text-slate-500 leading-snug">QR colour &amp; pattern are <strong class="text-slate-700">locked</strong> after first creation. Contact your admin to change them.</p>
+                        </div>
+
+                    </div>
+
+                    <!-- Download Buttons -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnDownloadPNG" type="button" class="py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm cursor-pointer">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>Download PNG</span>
+                        </button>
+                        <button id="btnDownloadSVG" type="button" class="py-2.5 px-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm cursor-pointer">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+                            <span>Download SVG</span>
+                        </button>
+                    </div>
+
+                    <!-- Direct Link -->
+                    <div class="pt-2 border-t border-slate-100 flex flex-col gap-1.5">
+                        <label class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Direct Card Link</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="text" id="txtDirectLink" readonly class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-mono bg-white truncate">
+                            <button id="btnCopyLink" type="button" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Copy Link">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <a id="btnOpenCard" href="#" target="_blank" class="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition" title="Open in New Tab">
+                                <i data-lucide="external-link" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Generate vCard QR Code Button (Placed below Direct Card Link) -->
+                    <div class="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                        <button type="submit" form="vcardForm" id="btnGenerateQR"
+                                class="w-full py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-black text-sm shadow-xl shadow-blue-500/25 flex items-center justify-center gap-2.5 transition cursor-pointer pulse-soft">
+                            <i data-lucide="qr-code" id="btnGenerateQRIcon" class="w-4 h-4"></i>
+                            <span id="btnGenerateQRText">Generate vCard QR Code</span>
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+    </main>
+
+    <!-- Success Confirmation Overlay (shown after customer's first save) -->
+    <div id="successOverlay" style="display: none;" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl flex flex-col items-center text-center gap-5 modal-animate relative">
+            <!-- Close / Exit Button at Top Right -->
+            <button type="button" id="btnExitSuccessOverlayX" onclick="window.closeSuccessOverlay ? window.closeSuccessOverlay() : null" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer" title="Exit">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Success Icon -->
+            <div class="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                <i data-lucide="check-circle" class="w-8 h-8"></i>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-black text-slate-900">Your Card Is Ready! 🎉</h2>
+                <p class="text-xs text-slate-500 mt-1.5">Your digital business card has been created successfully.</p>
+            </div>
+
+            <!-- QR Code Display -->
+            <div class="w-full p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center gap-2">
+                <div id="successQrContainer" class="p-2 bg-white rounded-2xl shadow-md flex items-center justify-center min-w-[180px] min-h-[180px]">
+                    <!-- QR will be cloned here -->
+                </div>
+                <h3 id="successCardName" class="text-sm font-bold text-slate-900 mt-1">Your Name</h3>
+                <p class="text-[11px] text-slate-400">Scan this QR code to view your digital card</p>
+            </div>
+
+            <!-- Download Buttons -->
+            <div class="grid grid-cols-2 gap-2 w-full">
+                <button id="successBtnDownloadPNG" type="button" class="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span>Download PNG</span>
+                </button>
+                <button id="successBtnDownloadSVG" type="button" class="py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer">
+                    <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+                    <span>Download SVG</span>
+                </button>
+            </div>
+
+            <!-- Info Message -->
+            <div class="w-full p-3.5 rounded-2xl bg-blue-50 border border-blue-100 text-left">
+                <p class="text-xs font-semibold text-blue-900 flex items-center gap-1.5">
+                    <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-blue-600"></i>
+                    <span>Need to make changes later?</span>
+                </p>
+                <p class="text-[11px] text-blue-700 mt-1 ml-5">Click <strong>"Edit My Card"</strong> on the homepage anytime to receive a one-time verification code to your email.</p>
+            </div>
+
+            <!-- Action Buttons in Overlay -->
+            <div class="flex flex-col gap-2.5 w-full">
+                <a id="successBtnViewCard" href="#" target="_blank" class="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition cursor-pointer flex items-center justify-center gap-2">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                    <span>Open Live Digital Card</span>
+                </a>
+
+                <div class="grid grid-cols-2 gap-2 w-full">
+                    <button id="successBtnNewCard" type="button" class="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>New Card</span>
+                    </button>
+                    <button id="successBtnExit" type="button" onclick="window.closeSuccessOverlay ? window.closeSuccessOverlay() : null" class="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5 text-slate-400"></i>
+                        <span>Exit / Done</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email OTP Verification Modal for Self-Service Editing -->
+    <div id="otpModal" style="display: none;" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border border-slate-200 flex flex-col items-center text-center modal-animate relative">
+            <button type="button" id="btnCancelOtpModalX" onclick="window.closeOtpModal ? window.closeOtpModal() : null" class="absolute top-4 right-4 w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Icon -->
+            <div id="otpModalIcon" class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 shadow-xs">
+                <i data-lucide="mail-check" class="w-7 h-7"></i>
+            </div>
+
+            <!-- STEP 1: Enter Email -->
+            <div id="otpStep1" class="w-full flex flex-col items-center">
+                <h3 class="text-base font-bold text-slate-900">Edit Your Digital Card</h3>
+                <p class="text-xs text-slate-500 mt-1">Enter the email address registered on your vCard to receive a 6-digit verification code.</p>
+
+                <form id="formRequestOtp" class="w-full mt-4 flex flex-col gap-3">
+                    <div class="text-left w-full">
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Registered Email</label>
+                        <input type="email" id="inputOtpEmail" required placeholder="name@company.com" autofocus
+                            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium">
+                    </div>
+
+                    <div id="otpRequestStatus" class="p-3 rounded-xl text-xs font-medium text-left hidden"></div>
+
+                    <button type="submit" id="btnSubmitRequestOtp"
+                        class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition cursor-pointer flex items-center justify-center gap-1.5 mt-1">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Send Verification Code</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- STEP 2: Enter 6-digit OTP -->
+            <div id="otpStep2" class="w-full flex flex-col items-center hidden">
+                <h3 class="text-base font-bold text-slate-900">Enter Verification Code</h3>
+                <p class="text-xs text-slate-500 mt-1">We sent a 6-digit code to <strong id="otpTargetEmailText" class="text-slate-800 break-all"></strong>.</p>
+
+                <form id="formVerifyOtp" class="w-full mt-4 flex flex-col gap-3">
+                    <div>
+                        <input type="text" id="inputOtpDigits" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="••••••" required autofocus
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center font-mono font-black text-2xl tracking-[0.4em] text-slate-800">
+                    </div>
+
+                    <div id="otpVerifyStatus" class="p-3 rounded-xl text-xs font-medium text-left hidden"></div>
+
+                    <button type="submit" id="btnSubmitVerifyOtp"
+                        class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition cursor-pointer flex items-center justify-center gap-1.5">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        <span>Verify & Unlock Card</span>
+                    </button>
+
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 mt-1 px-1">
+                        <button type="button" id="btnOtpBackToStep1" class="text-slate-500 hover:text-slate-800 hover:underline cursor-pointer">
+                            &larr; Change email
+                        </button>
+                        <button type="button" id="btnResendOtp" class="text-blue-600 hover:underline font-semibold cursor-pointer">
+                            Resend code
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Subtle Footer with discrete Admin link -->
+    <footer class="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">
+        <span>&copy; <script>document.write(new Date().getFullYear())</script> Digital Business Card Studio. All rights reserved.</span>
+        <a href="dashboard.php" class="text-slate-300 hover:text-slate-600 transition ml-2 p-1 rounded inline-flex items-center" title="Admin Portal">
+            <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+        </a>
+    </footer>
+
+    <!-- Photo Crop & Scale Modal (Cropper.js) -->
+    <div id="cropModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 cropper-modal-overlay">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl modal-animate flex flex-col gap-4">
+
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <i data-lucide="crop" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Scale & Center Your Face</h3>
+                        <p class="text-xs text-slate-500">Drag picture and use the zoom slider to fit your face in the circle</p>
+                    </div>
+                </div>
+                <button type="button" id="btnCancelCropX" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Cropper Image Display Area -->
+            <div class="w-full h-72 bg-slate-900 rounded-2xl overflow-hidden relative flex items-center justify-center">
+                <img id="cropperImage" class="max-w-full max-h-full block" alt="Source for cropping">
+            </div>
+
+            <!-- Controls: Zoom Slider & Rotation -->
+            <div class="flex flex-col gap-2.5 pt-1">
+                <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span class="flex items-center gap-1.5"><i data-lucide="zoom-in" class="w-3.5 h-3.5"></i> Scale / Zoom</span>
+                    <span id="zoomLevelText" class="text-slate-400 font-mono">1.0x</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <i data-lucide="minus" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <input type="range" id="cropZoomSlider" min="0.2" max="3" step="0.05" value="1" class="w-full accent-blue-600 cursor-pointer">
+                    <i data-lucide="plus" class="w-3.5 h-3.5 text-slate-400"></i>
+                </div>
+
+                <div class="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="btnRotateLeft" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition cursor-pointer" title="Rotate Left 90°">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            <span>-90°</span>
+                        </button>
+                        <button type="button" id="btnRotateRight" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition cursor-pointer" title="Rotate Right 90°">
+                            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                            <span>+90°</span>
+                        </button>
+                        <button type="button" id="btnResetCrop" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1 transition cursor-pointer">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+
+                    <span class="text-[11px] text-slate-400">Circular crop for avatar</span>
+                </div>
+            </div>
+
+            <!-- Modal Footer Actions -->
+            <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button type="button" id="btnCancelCrop" class="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" id="btnApplyCrop" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center gap-1.5 transition cursor-pointer">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Save & Apply Face</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="assets/js/vcard-helper.js?v=2.5"></script>
+    <script src="assets/js/builder.js?v=2.5"></script>
+</body>
+</html>
