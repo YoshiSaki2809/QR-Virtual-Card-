@@ -7,7 +7,7 @@ An enterprise-ready, dynamic digital business card (vCard) platform that generat
 ## 📸 Project Screenshots
 
 <p align="center">
-  <img src="docs/images/dashboard-preview.png" alt="Admin Analytics Dashboard" width="800">
+  <img src="docs/Preview/Screenshot%202026-11-16%20141332.png" alt="Admin Analytics Dashboard" width="800">
 </p>
 
 <p align="center" style="display: flex; justify-content: center; gap: 20px;">
