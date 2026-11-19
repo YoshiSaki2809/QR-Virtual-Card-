@@ -11,8 +11,8 @@ An enterprise-ready, dynamic digital business card (vCard) platform that generat
 </p>
 
 <p align="center" style="display: flex; justify-content: center; gap: 20px;">
-  <img src="docs/images/builder-preview.png" alt="vCard Studio Builder" width="48%">
-  <img src="docs/images/mobile-card-preview.png" alt="Mobile vCard View" width="48%">
+  <img src="docs/Preview/Screenshot%202026-11-16%20141528.png" alt="vCard Studio Builder" width="48%">
+
 </p>
 
 ---
